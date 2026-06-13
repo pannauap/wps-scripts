@@ -1,8 +1,9 @@
-from os import kill, system, path, chdir
+from os import kill, path, chdir
 from signal import alarm, signal, SIGALRM, SIGKILL
 import time
 import subprocess
-from re import sub, compile, search
+import glob
+from re import sub, compile, search, match as re_match
 from sys import argv
 
 REAVER = 'reaver'
@@ -403,18 +404,18 @@ class Engine():
     """
     
     print INFO + "Cambiando direccion MAC del dispositivo..."
-    system('ifconfig %s down' %c.IFACE_MON)
-    system('iwconfig %s mode Managed' %c.IFACE_MON)
-    system('ifconfig %s up' %c.IFACE_MON)
-    system('ifconfig %s down' %c.IFACE_MON)
+    subprocess.call(['ifconfig', c.IFACE_MON, 'down'])
+    subprocess.call(['iwconfig', c.IFACE_MON, 'mode', 'Managed'])
+    subprocess.call(['ifconfig', c.IFACE_MON, 'up'])
+    subprocess.call(['ifconfig', c.IFACE_MON, 'down'])
     mac = subprocess.check_output(['macchanger','-r',c.IFACE_MON])
     mac = mac.split('\n')[2]
     mac = sub('New       MAC\: ','',mac.strip())
     mac = sub(' \(unknown\)','',mac)
-    system('ifconfig %s up' %c.IFACE_MON)
-    system('ifconfig %s down' %c.IFACE_MON)
-    system('iwconfig %s mode monitor' %c.IFACE_MON)
-    system('ifconfig %s up' %c.IFACE_MON)
+    subprocess.call(['ifconfig', c.IFACE_MON, 'up'])
+    subprocess.call(['ifconfig', c.IFACE_MON, 'down'])
+    subprocess.call(['iwconfig', c.IFACE_MON, 'mode', 'monitor'])
+    subprocess.call(['ifconfig', c.IFACE_MON, 'up'])
     print INFO + "Se cambio la MAC a una nueva: %s%s" %(INPUT,mac.upper())
     
   def exit_limpio(self):
@@ -426,11 +427,12 @@ class Engine():
       print "      y se encuentran en la carpeta home del usuario root"
       choice = raw_input("%sDesea borrarlos? [S/n]" %INPUT)
       if choice in CHOICES_YES:
-	system('cd /root && rm -r pixiewps/ && rm -r reaver-wps-fork-t6x/')
+	subprocess.call(['rm', '-r', '/root/pixiewps/', '/root/reaver-wps-fork-t6x/'])
     if c.IS_MON:
       c.set_iface("DOWN")
     if USE_REAVER:
-      system('rm -f /usr/local/etc/reaver/*.wpc')
+      for f in glob.glob('/usr/local/etc/reaver/*.wpc'):
+        subprocess.call(['rm', '-f', f])
     exit()
 
 class Config():
@@ -552,7 +554,7 @@ class Config():
     """
     Guarda la informacion en un archivo
     """
-    system('echo INFORMACION >> %s' %OUTPUT_FILE)
+    pass  # data header written via file I/O below
     with open(OUTPUT_FILE, 'a+') as f:
       fecha = str(time.gmtime()[1])+'-'+str(time.gmtime()[2])+'-'+str(time.gmtime()[0])
       hora = str((time.gmtime()[3])-3).zfill(2)+':'+str(time.gmtime()[4]).zfill(2)
@@ -573,27 +575,30 @@ class Config():
     aircrack = 'apt-get -y install aircrack-ng'
     if not engine.GIT:
       print INFO + "Instalando git"
-      proc4 = system(git)
+      subprocess.call(git.split())
     if not engine.AIRMON:
       print INFO + "Instalando aircrack..."
-      proc5 = system(aircrack)
+      subprocess.call(aircrack.split())
     if not engine.PIXIEWPS:
       print INFO + "Instalando dependencias de pixiewps..."
-      proc2 = system(pixie_dep)
+      subprocess.call(pixie_dep.split())
       print INFO + "Descargando pixiewps..."
-      proc3 = system(pixiewps)    
+      subprocess.call(pixiewps.split())    
     if not engine.REAVER:
       print INFO + "Instalando las dependencias de reaver..."
-      proc = system(reaver_dep)
+      subprocess.call(reaver_dep.split())
       print INFO + "Descargando reaver..."
-      proc1 = system(reaver)
+      subprocess.call(reaver.split())
     if path.isdir('pixiewps') and not engine.PIXIEWPS:
       print INFO + "Instalando pixiewps..."
-      system('cd pixiewps/src && make && make install')
+      subprocess.call(['make'], cwd='pixiewps/src')
+      subprocess.call(['make', 'install'], cwd='pixiewps/src')
       print INFO + "Listo"
     if path.isdir('reaver-wps-fork-t6x') and not engine.REAVER:
       print INFO + "Instalando reaver..."
-      system('cd reaver-wps-fork-t6x* && cd src && ./configure && make && make install')
+      subprocess.call(['./configure'], cwd='reaver-wps-fork-t6x/src')
+      subprocess.call(['make'], cwd='reaver-wps-fork-t6x/src')
+      subprocess.call(['make', 'install'], cwd='reaver-wps-fork-t6x/src')
       print INFO + "Listo"
     engine.check(check_again = True)
 
@@ -813,7 +818,8 @@ class Attack():
       print INFO + "Pin WPS encontrado!"
       print "\t" + INPUT + pin
       for_file.append('Pin WPS: '+pin+'\n')
-      system('echo >> pyxiewpsdata.txt')
+      with open('pyxiewpsdata.txt','a+') as pf:
+        pf.write('\n')
       with open('pyxiewpsdata.txt','a+') as f:
 	f.write(ESSID+'\n')
 	f.write(pin)

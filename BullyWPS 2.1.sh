@@ -547,7 +547,7 @@ sleep 3
 # Descargamos la ultima revision con svn
 cd /tmp
 echo "[1;32m"
-svn co http://bully.googlecode.com/svn/trunk/src/ /tmp/bully-read-only && \
+svn co https://bully.googlecode.com/svn/trunk/src/ /tmp/bully-read-only && \
 echo [0m
 cd /tmp/bully-read-only
 clear
@@ -653,7 +653,7 @@ sleep 3
 # Descargamos la ultima revision con svn
 cd /tmp
 echo "[1;32m"
-git clone http://github.com/alobbs/macchanger/ /tmp/macchanger && \
+git clone https://github.com/alobbs/macchanger/ /tmp/macchanger && \
 echo [0m
 cd /tmp/macchanger
 clear

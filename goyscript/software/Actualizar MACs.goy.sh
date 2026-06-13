@@ -1,6 +1,6 @@
 #!/bin/sh
 
-wget http://standards.ieee.org/regauth/oui/oui.txt
+wget https://standards.ieee.org/regauth/oui/oui.txt
 if [ -f oui.txt ]
 then
 	cat oui.txt | grep "(hex)" | awk '{gsub("-",":",$1);  print $0}' | sed 's/ (hex) /#/' > MACs.goy

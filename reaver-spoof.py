@@ -19,14 +19,38 @@ from os import path, devnull
 from sys import argv, exit
 from subprocess import Popen, PIPE, STDOUT
 from random import randint
-from re import search
+from re import search, match
 from pprint import pprint
+
+
+def _validate_iface(name):
+    if not match(r'^[a-zA-Z0-9_-]+$', name):
+        raise ValueError('Invalid interface name: %s' % name)
+    return name
+
+
+def _validate_bssid(bssid):
+    if not match(r'^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$', bssid):
+        raise ValueError('Invalid BSSID: %s' % bssid)
+    return bssid
+
+
+def _validate_mac(mac):
+    if not match(r'^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$', mac):
+        raise ValueError('Invalid MAC: %s' % mac)
+    return mac
+
+
+def _validate_channel(channel):
+    if not match(r'^[0-9]+$', str(channel)):
+        raise ValueError('Invalid channel: %s' % channel)
+    return str(channel)
 
 
 def myrun(cmd):
     """from http://blog.kagesenshi.org/2008/02/teeing-python-subprocesspopen-output.html
     """
-    p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT)
+    p = Popen(cmd, stdout=PIPE, stderr=STDOUT)
     stdout = []
     while True:
         line = p.stdout.readline()
@@ -38,7 +62,7 @@ def myrun(cmd):
 
 
 def exec_cmd(cmd):
-    proc = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
+    proc = Popen(cmd, stdout=PIPE, stderr=PIPE)
     stdout, stderr = proc.communicate()
     if proc.returncode != 0:
         print('Warning: command failed (rc=%d): %s' % (proc.returncode, cmd))
@@ -48,7 +72,7 @@ def exec_cmd(cmd):
 
 
 def which(cmd):
-    return exec_cmd('which %s' % cmd)
+    return exec_cmd(['which', cmd])
 
 
 def reaver_exists():
@@ -87,13 +111,15 @@ def iwconfig():
 
 
 def start_monitor(iface):
+    iface = _validate_iface(iface)
     print('Starting mon on %s' % iface)
-    exec_cmd('airmon-ng start %s' % iface)
+    exec_cmd(['airmon-ng', 'start', iface])
 
 
 def stop_monitor(iface):
+    iface = _validate_iface(iface)
     print('Stoping mon on %s' % iface)
-    exec_cmd('airmon-ng start %s' % iface)
+    exec_cmd(['airmon-ng', 'stop', iface])
 
 
 def random_mac():
@@ -105,22 +131,25 @@ def random_mac():
 
 
 def change_mac(iface, mac=None):
-    exec_cmd('ifconfig %s down' % iface)
+    iface = _validate_iface(iface)
+    exec_cmd(['ifconfig', iface, 'down'])
     if mac is None:
         mac = random_mac()
-    exec_cmd('ifconfig %s hw ether %s' % (iface, mac))
-    exec_cmd('ifconfig %s up' % iface)
+    _validate_mac(mac)
+    exec_cmd(['ifconfig', iface, 'hw', 'ether', mac])
+    exec_cmd(['ifconfig', iface, 'up'])
     return mac
 
 
 def reaver(iface, bssid, mac, channel=None):
     res = {'pin': None, 'key': None, 'rate_limit': False, 'stdout': None}
 
-    cmd = 'reaver -i %s -b %s -vv --mac=%s' % (iface, bssid, mac)
+    cmd = ['reaver', '-i', _validate_iface(iface), '-b', _validate_bssid(bssid),
+           '-vv', '--mac=%s' % _validate_mac(mac)]
     if channel is not None:
-        cmd += ' -c %s' % channel
+        cmd += ['-c', _validate_channel(channel)]
 
-    p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
+    p = Popen(cmd, stdin=PIPE, stdout=PIPE, stderr=STDOUT)
     stdout = []
     while True:
         line = p.stdout.readline()
