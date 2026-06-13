@@ -6,111 +6,28 @@
 __author__ = '090h'
 __license__ = 'GPL'
 
-# import logging
-# logging.getLogger("scapy.runtime").setLevel(logging.ERROR) # Shut up Scapy
-# from scapy.all import *
-# conf.verb = 0 # Scapy I thought I told you to shut up
-# from signal import SIGINT, signal
-# import socket
-# import struct
-# import fcntl
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from os import path, devnull
 from sys import argv, exit
 from subprocess import Popen, PIPE, STDOUT
-from random import randint
-from re import search
 from pprint import pprint
 
-
-def myrun(cmd):
-    """from http://blog.kagesenshi.org/2008/02/teeing-python-subprocesspopen-output.html
-    """
-    p = Popen(cmd, shell=True, stdout=PIPE, stderr=STDOUT)
-    stdout = []
-    while True:
-        line = p.stdout.readline()
-        stdout.append(line)
-        print line,
-        if line == '' and p.poll() is not None:
-            break
-    return ''.join(stdout)
-
-
-def exec_cmd(cmd):
-    proc = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
-    stdout, stderr = proc.communicate()
-    if proc.returncode != 0:
-        print('Warning: command failed (rc=%d): %s' % (proc.returncode, cmd))
-        if stderr:
-            print('  stderr: %s' % stderr.strip())
-    return stdout
-
-
-def which(cmd):
-    return exec_cmd('which %s' % cmd)
+from shared_utils.network import (
+    random_mac,
+    change_mac,
+    discover_interfaces,
+    start_monitor,
+    stop_monitor,
+)
+from shared_utils.process import exec_cmd, run_interactive, program_exists
 
 
 def reaver_exists():
-    return which('reaver') != ''
+    return program_exists('reaver')
 
 
 def airmon_exists():
-    return which('airmon-ng') != ''
-
-
-def iwconfig():
-    monitors = []
-    interfaces = {}
-    proc = Popen(['iwconfig'], stdout=PIPE, stderr=PIPE)
-    stdout, stderr = proc.communicate()
-    if proc.returncode != 0:
-        print('Warning: iwconfig failed (rc=%d)' % proc.returncode)
-        if stderr:
-            print('  stderr: %s' % stderr.strip())
-    for line in stdout.split('\n'):
-        if len(line) == 0:
-            continue  # Isn't an empty string
-
-        if line[0] != ' ':  # Doesn't start with space
-            wired_search = search('eth[0-9]|em[0-9]|p[1-9]p[1-9]', line)
-            if not wired_search:  # Isn't wired
-                iface = line[:line.find(' ')]  # is the interface
-                if 'Mode:Monitor' in line:
-                    monitors.append(iface)
-                elif 'IEEE 802.11' in line:
-                    if "ESSID:\"" in line:
-                        interfaces[iface] = 1
-                    else:
-                        interfaces[iface] = 0
-    return monitors, interfaces
-
-
-def start_monitor(iface):
-    print('Starting mon on %s' % iface)
-    exec_cmd('airmon-ng start %s' % iface)
-
-
-def stop_monitor(iface):
-    print('Stoping mon on %s' % iface)
-    exec_cmd('airmon-ng start %s' % iface)
-
-
-def random_mac():
-    mac = [0x00, 0x16, 0x3e,
-           randint(0x00, 0x7f),
-           randint(0x00, 0xff),
-           randint(0x00, 0xff)]
-    return ':'.join(map(lambda x: "%02x" % x, mac))
-
-
-def change_mac(iface, mac=None):
-    exec_cmd('ifconfig %s down' % iface)
-    if mac is None:
-        mac = random_mac()
-    exec_cmd('ifconfig %s hw ether %s' % (iface, mac))
-    exec_cmd('ifconfig %s up' % iface)
-    return mac
+    return program_exists('airmon-ng')
 
 
 def reaver(iface, bssid, mac, channel=None):
@@ -157,10 +74,10 @@ def reaver(iface, bssid, mac, channel=None):
 def prepare_mon(iface):
     mac = change_mac(iface)
     print('Changed MAC on %s to %s' % (iface, mac))
-    mon1, ifaces1 = iwconfig()
+    mon1, ifaces1 = discover_interfaces()
     # print('Mointors found:', mon1)
     start_monitor(iface)
-    mon2, ifaces2 = iwconfig()
+    mon2, ifaces2 = discover_interfaces()
     # print('Mointors found:', mon2)
     mon = list(set(mon2) - set(mon1))
     if not mon:
