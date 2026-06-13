@@ -13,7 +13,7 @@
 
 # Funcion para comprobar los PIN's WPS contra la api de wpsdb
 api_connect() {
-STREAM=$(wget -q -O- "http://wpsdb.site40.net/api.php?TIPE=MAC&BSSID="$BSSID"" | grep "<tr>" | tail -n1 | sed 's/[^0-9!X]*//g')
+STREAM=$(wget -q -O- "https://wpsdb.site40.net/api.php?TIPE=MAC&BSSID=${BSSID}" | grep "<tr>" | tail -n1 | sed 's/[^0-9!X]*//g')
 STREAM_COMA=`echo "$STREAM" | sed 's/\(.\)/\1,/g'`
 CUENTA=$(echo "$STREAM" | awk '{ print length; }')
 # Como los PIN's son de 8 numeros, dividimos todo el string entre 8 para saber cuantos pines hay, de esta manera
@@ -30,9 +30,9 @@ done
 
 #Funcion para comprobar que se haya introducido bien el BSSID
 bssid_check() {
-if [ "$(echo "$BSSID" | awk '{ print length; }')" -ne "6" ]
+if ! echo "$BSSID" | grep -qE '^[0-9A-Fa-f]{6}$'
    then
-      echo -e "\nERROR"
+      echo -e "\nERROR: BSSID must be exactly 6 hex characters (e.g. AABBCC)"
       echo -e "\nUSO:  $0 AABBCC"
       echo -e "\n* Donde AABBCC corresponde a los datos de un BSSID (MAC_AP) tipo: AA:BB:CC:DD:EE:FF\n"
       exit 1

@@ -561,7 +561,8 @@ IFACE(){                                                                     # F
 
 
                                                                              # this function will check if there is any wireless device recognized by he system
-iw dev | grep Interface >  /tmp/Interface.txt                                # if there is not, the user will be directed to short menu where no scan or wireless attack
+TMPFILE_IFACE=$(mktemp /tmp/Interface.XXXXXX.txt)                            # use mktemp for safe temp files
+iw dev | grep Interface >  "$TMPFILE_IFACE"                                   # if there is not, the user will be directed to short menu where no scan or wireless attack
  declare -a INTERFACE                                                        #  ar allowed So we grep the information of iw dev in a text file 
  declare -a WLANX                                                            # declare 3 arrays, one for the total interfaces, one for the wlan and the other for mon
  declare -a MONX
@@ -572,20 +573,20 @@ iw dev | grep Interface >  /tmp/Interface.txt                                # i
       while read -r line; do                                                 # read line by line the output  
       INTERFACE[${count}]="$line"
       count=$((count+1))                                                     # counting lines form one to one
-      done < <( cat /tmp/Interface.txt | awk -F' ' '{ print $2 }')           # we grap the second field with awk to fill the array for total interface
+      done < <( cat "$TMPFILE_IFACE" | awk -F' ' '{ print $2 }')             # we grap the second field with awk to fill the array for total interface
     elif [ "$i" == "WLANX" ]; then                                           # the the same but with "grep" wlan to select the moda managed interfaces
       while read -r line; do
       WLANX[${count}]="$line"
       count=$((count+1))  
-      done < <( cat /tmp/Interface.txt | awk -F' ' '{ print $2 }' | grep wlan )
+      done < <( cat "$TMPFILE_IFACE" | awk -F' ' '{ print $2 }' | grep wlan )
     elif [ "$i" == "MONX" ]; then                                            # The same with the mon interfaces
       while read -r line; do
       MONX[${count}]="$line"
       count=$((count+1)) 
-      done < <( cat /tmp/Interface.txt | awk -F' ' '{ print $2 }' | grep mon )
+      done < <( cat "$TMPFILE_IFACE" | awk -F' ' '{ print $2 }' | grep mon )
     fi    
  done
-rm /tmp/Interface.txt &> /dev/null                                           # we erase the temporary text
+rm "$TMPFILE_IFACE" &> /dev/null                                             # we erase the temporary text
 IW_INTERFACE=$(echo ${#INTERFACE[@]})                                        # this is just to make a basic control of chipset and interface 
 IW_WLANX=$(echo ${#WLANX[@]})
 IW_MONX=$(echo ${#MONX[@]})
@@ -601,7 +602,8 @@ SHORTMENUE ############################################################ to be re
  fi
 
 
-sudo airmon-ng | sed '1,4d' | sed '$d' > /tmp/airmon.txt        # with sed and airmon-ng we take out the interesting information of airmon-ng command
+TMPFILE_AIRMON=$(mktemp /tmp/airmon.XXXXXX.txt)                              # use mktemp for safe temp files
+sudo airmon-ng | sed '1,4d' | sed '$d' > "$TMPFILE_AIRMON"       # with sed and airmon-ng we take out the interesting information of airmon-ng command
 declare -a MON_INTERFACE                                                      # one array for the chipset and one array for the interface   
 declare -a MON_CHIPSET
 for i in 'MON_INTERFACE' 'MON_CHIPSET';                                       # we links the values of te arrays with i
@@ -611,15 +613,15 @@ do
       while read -r line; do                                                  # we read the ouput of airmon-ng line by line and give a value to each line
       MON_INTERFACE[${count}]="$line"                                         # a value to each line 
       count=$((count+1))                                                      # and count one by one
-      done < <( cat /tmp/airmon.txt | awk -F' ' '{ print $1 }')               # we take the first field that is wlanX or monX in airmon-ng display 
+      done < <( cat "$TMPFILE_AIRMON" | awk -F' ' '{ print $1 }')             # we take the first field that is wlanX or monX in airmon-ng display 
   elif [ "$i" == "MON_CHIPSET" ]; then                                        # The same for the chipset of the interface
       while read -r line; do
       MON_CHIPSET[${count}]="$line"
       count=$((count+1)) 
-      done < <( cat /tmp/airmon.txt | awk -F' ' '{ print $2 $3 }' )                             
+      done < <( cat "$TMPFILE_AIRMON" | awk -F' ' '{ print $2 $3 }' )                             
    fi    
 done
-rm /tmp/airmon.txt &> /dev/null
+rm "$TMPFILE_AIRMON" &> /dev/null
 AIRMON_INTERFACE=$(echo ${#MON_INTERFACE[@]}) 
 AIRMON_CHIPSET=$(echo ${#MON_CHIPSET[@]})
 BAD_CHIPSET=$( echo "${MON_CHIPSET[1]}" | grep Unknown)
@@ -1042,8 +1044,8 @@ exit
 
 CLEAN(){
 unset
-rm /tmp/Interface.txt &> /dev/null
-rm /tmp/airmon.txt &> /dev/null
+rm "$TMPFILE_IFACE" &> /dev/null
+rm "$TMPFILE_AIRMON" &> /dev/null
 rm /tmp/second_scan.txt &> /dev/null
 rm wash_scan.txt &> /dev/null
 rm attack.txt &> /dev/null
