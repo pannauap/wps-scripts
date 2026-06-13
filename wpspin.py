@@ -26,5 +26,8 @@ try:
         print "[+] WPS pin is : %07d%d" % (p, wps_pin_checksum(p))
    else:
         usage()
-except Exception:
+except IndexError:
+   usage()
+except ValueError as e:
+   print "[!] Invalid MAC value: %s" % e
    usage()

@@ -38,7 +38,13 @@ def myrun(cmd):
 
 
 def exec_cmd(cmd):
-    return Popen(cmd, shell=True, stdout=PIPE).communicate()[0]
+    proc = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
+    stdout, stderr = proc.communicate()
+    if proc.returncode != 0:
+        print('Warning: command failed (rc=%d): %s' % (proc.returncode, cmd))
+        if stderr:
+            print('  stderr: %s' % stderr.strip())
+    return stdout
 
 
 def which(cmd):
@@ -56,8 +62,13 @@ def airmon_exists():
 def iwconfig():
     monitors = []
     interfaces = {}
-    proc = Popen(['iwconfig'], stdout=PIPE, stderr=open(devnull, 'w'))
-    for line in proc.communicate()[0].split('\n'):
+    proc = Popen(['iwconfig'], stdout=PIPE, stderr=PIPE)
+    stdout, stderr = proc.communicate()
+    if proc.returncode != 0:
+        print('Warning: iwconfig failed (rc=%d)' % proc.returncode)
+        if stderr:
+            print('  stderr: %s' % stderr.strip())
+    for line in stdout.split('\n'):
         if len(line) == 0:
             continue  # Isn't an empty string
 
@@ -152,6 +163,9 @@ def prepare_mon(iface):
     mon2, ifaces2 = iwconfig()
     # print('Mointors found:', mon2)
     mon = list(set(mon2) - set(mon1))
+    if not mon:
+        print('Error: no new monitor interface was created')
+        exit(-1)
     mon = mon[0]
     # print('Delta mon', mon)
     return mon, mac
@@ -178,7 +192,8 @@ def crack_wps(iface, bssid, channel=None, tries=3):
             mon, mac = reset_mon(iface, mon)
             tries -= 1
         else:
-            print('Unknown error')
+            print('Unknown error. Reaver output:')
+            pprint(res)
             break
 
 
