@@ -804,8 +804,10 @@ class Attack():
 	    break
 	  else:
 	    pass
-      except:             #Tengo que manejar un posible error del Pixie
-	pass
+      except subprocess.CalledProcessError as e:
+	print ALERTA + "pixiewps devolvio error (rc=%d)" % e.returncode
+      except OSError as e:
+	print ALERTA + "No se pudo ejecutar pixiewps: %s" % str(e)
       if pin != '': break
     if pin != '' and len(pin) == 8:
       print INFO + "Pin WPS encontrado!"
@@ -854,7 +856,7 @@ if __name__ == '__main__':
     c = Config()
     engine = Engine()
     engine.check()
-  except KeyboardInterrupt, EOFError:
+  except (KeyboardInterrupt, EOFError):
     print
     print ALERTA + "Programa interrumpido!"
     print    
