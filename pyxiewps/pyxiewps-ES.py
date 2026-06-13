@@ -5,17 +5,18 @@ import subprocess
 from re import sub, compile, search
 from sys import argv
 
+import sys
+sys.path.insert(0, path.join(path.dirname(path.abspath(__file__)), '..'))
+from shared_utils.colors import INFO, ALERTA, INPUT, DATA, OPCION
+from shared_utils.process import program_exists as _program_exists, get_uid as _get_uid, get_children
+from shared_utils.network import change_mac_with_macchanger
+
 REAVER = 'reaver'
 PIXIEWPS = 'pixiewps'
 WASH = 'wash'
 AIRMON = 'airmon-ng'
 MACCHANGER = 'macchanger'
 GIT = 'git'
-INFO = '\033[32m[+] \033[0m'   # Verde
-ALERTA = '\033[31m[!] \033[0m' # Rojo
-INPUT = '\033[34m[>] \033[0m'  # Azul
-DATA = '\033[33m[DATA] \033[0m'  #Amarillo
-OPCION = '\033[33m[!!!] \033[0m' #Amarillo
 USE_REAVER = False   # Si False usa wash y termina.
 USE_PIXIEWPS = False # Intenta averiguar el pin WPS con pixiewps
 WASH_TIME = 11       # Tiempo para que wash recopile APs con WPS
@@ -388,34 +389,14 @@ class Engine():
     return output
 
   def get_process_children(self, pid):
-    """
-    Devuelve los pids del programa que se haya abierto para
-    matar todo el arbol de procesos child
-    """
-    
-    proc = subprocess.Popen('ps --no-headers -o pid --ppid %d' % pid, shell = True, stdout = subprocess.PIPE)
-    stdout = proc.communicate()[0]
-    return [int(p) for p in stdout.split()]
+    """Return child PIDs (delegates to shared_utils)."""
+    return get_children(pid)
 
   def mac_changer(self):
-    """
-    Cambia la MAC del dispositivo ante un bloqueo del AP
-    """
-    
+    """Cambia la MAC del dispositivo ante un bloqueo del AP."""
     print INFO + "Cambiando direccion MAC del dispositivo..."
-    system('ifconfig %s down' %c.IFACE_MON)
-    system('iwconfig %s mode Managed' %c.IFACE_MON)
-    system('ifconfig %s up' %c.IFACE_MON)
-    system('ifconfig %s down' %c.IFACE_MON)
-    mac = subprocess.check_output(['macchanger','-r',c.IFACE_MON])
-    mac = mac.split('\n')[2]
-    mac = sub('New       MAC\: ','',mac.strip())
-    mac = sub(' \(unknown\)','',mac)
-    system('ifconfig %s up' %c.IFACE_MON)
-    system('ifconfig %s down' %c.IFACE_MON)
-    system('iwconfig %s mode monitor' %c.IFACE_MON)
-    system('ifconfig %s up' %c.IFACE_MON)
-    print INFO + "Se cambio la MAC a una nueva: %s%s" %(INPUT,mac.upper())
+    mac = change_mac_with_macchanger(c.IFACE_MON)
+    print INFO + "Se cambio la MAC a una nueva: %s%s" %(INPUT, mac)
     
   def exit_limpio(self):
     """
@@ -443,27 +424,12 @@ class Config():
   IS_MON = False
   
   def program_exists(self, programa):
-    """
-    Chequea si existe el programa que se le
-    pasa en el argumento
-    """
-
-    cmd = "which " + programa
-    output = subprocess.Popen(cmd, shell=True, stdout = subprocess.PIPE)
-    output = output.communicate()[0]
-
-    if output != "":
-      return True    # Existe
-    else:
-      return False   # No existe
+    """Check if program exists on PATH (delegates to shared_utils)."""
+    return _program_exists(programa)
 
   def get_uid(self):
-    """
-    Devuelve el usuario que ejecuta el script
-    """
-    
-    uid = subprocess.check_output(['id','-u']).strip()
-    return uid
+    """Return current user UID (delegates to shared_utils)."""
+    return _get_uid()
   
   def check_iface(self):
     """
